@@ -114,7 +114,7 @@ def main():
     "optimizer_name": optim.NAdam,
     "ImbalancedDatasetSampler": False, # ImbalancedDatasetSampler or class_weights
     "class_weights": True,
-    "learning_speed": "constant",
+    "learning_speed": "e",
     }
 
     assert not (hyper_params["ImbalancedDatasetSampler"] and hyper_params["class_weights"]),"both_True"
@@ -417,7 +417,7 @@ def main():
                 target_layers = [net.features[-1]]
                 cam = GradCAM(model=net, target_layers=target_layers, use_cuda=False)
                 input_tensor = torch.unsqueeze(image, dim=0)
-                grayscale_cam = cam(input_tensor=input_tensor, target_category=int(predict_y[pre_index]))
+                grayscale_cam = cam(input_tensor=input_tensor.to(device), target_category=int(predict_y[pre_index]))
                 grayscale_cam = grayscale_cam[0, :]
                 visualization = show_cam_on_image(np.asarray(img_pil).astype(dtype=np.float32) / 255.,
                                                 grayscale_cam,
