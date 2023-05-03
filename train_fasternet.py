@@ -58,7 +58,8 @@ def Gcam(model, tar_cate, image, img, device):
 
     # [C, H, W]
     with TemporaryGrad():
-        target_layers = [model.features[-1]]
+        # target_layers = [model.features[-1]]
+        target_layers = [model.stages[-1]]
         cam = GradCAM(model=model, target_layers=target_layers, use_cuda=False)
         input_tensor = torch.unsqueeze(img, dim=0).to(device)
         grayscale_cam = cam(input_tensor=input_tensor, target_category=int(tar_cate))
@@ -160,12 +161,12 @@ def main():
                                     transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5),
                                     transforms.Resize([hyper_params["input_size"], hyper_params["input_size"]]),
                                     transforms.ToTensor(),
-                                    transforms.Normalize(mean=[0.44127703, 0.4712498, 0.43714803], std= [0.18507297, 0.18050247, 0.16784933])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ]),
         "val_test": transforms.Compose([
                                     transforms.Resize([hyper_params["input_size"], hyper_params["input_size"]]),
                                     transforms.ToTensor(),
-                                    transforms.Normalize(mean=[0.44127703, 0.4712498, 0.43714803], std= [0.18507297, 0.18050247, 0.16784933])
+                                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                     ])}
     mixup_fn = Mixup(
                     mixup_alpha=0.8, cutmix_alpha=1.0, cutmix_minmax=None,
@@ -210,6 +211,7 @@ def main():
         train_loader = torch.utils.data.DataLoader(train_dataset,
                                                 sampler=ImbalancedDatasetSampler(train_dataset),
                                                 batch_size=hyper_params["batch_size"],
+                                                drop_last=True,
                                                 num_workers=nw)
     else:
         train_loader = torch.utils.data.DataLoader(train_dataset,
@@ -313,10 +315,10 @@ def main():
     #     model_ema=None
 
     # Print model's state_dict
-    modelstr=""
-    for param_tensor in net.state_dict():
-        modelstr += str(param_tensor) + ", \t" + str(net.state_dict()[param_tensor].size()) + "\n"
-    experiment.set_model_graph(modelstr,overwrite=False)
+    # modelstr=""
+    # for param_tensor in net.state_dict():
+    #     modelstr += str(param_tensor) + ", \t" + str(net.state_dict()[param_tensor].size()) + "\n"
+    # experiment.set_model_graph(modelstr,overwrite=False)
     
         
 
@@ -325,11 +327,11 @@ def main():
     # for var_name in optimizer.state_dict():
     #     print(var_name, "\t", optimizer.state_dict()[var_name])
     # Log model weights	
-    weights = []	
-    for name in net.named_parameters():	
-        if 'weight' in name[0]:	
-            weights.extend(name[1].detach().cpu().numpy().tolist())	
-    experiment.log_histogram_3d(weights, step=0)
+    # weights = []	
+    # for name in net.named_parameters():	
+    #     if 'weight' in name[0]:	
+    #         weights.extend(name[1].detach().cpu().numpy().tolist())	
+    # experiment.log_histogram_3d(weights, step=0)
 
 
 
@@ -376,11 +378,11 @@ def main():
                                                                      loss)
         
         # Log model weights	
-        weights = []	
-        for name in net.named_parameters():	
-            if 'weight' in name[0]:	
-                weights.extend(name[1].detach().cpu().numpy().tolist())	
-        experiment.log_histogram_3d(weights, step=epoch + 1)
+        # weights = []	
+        # for name in net.named_parameters():	
+        #     if 'weight' in name[0]:	
+        #         weights.extend(name[1].detach().cpu().numpy().tolist())	
+        # experiment.log_histogram_3d(weights, step=epoch + 1)
 
         experiment.log_metric("train_accuracy", correct / train_num )   
 
@@ -438,9 +440,8 @@ def main():
         if val_accurate > best_acc:
             best_acc = val_accurate
             torch.save(net.state_dict(), save_path)
-            model=torch.load(save_path)
-            print(model['state_dict'].keys())
-            best_net.load_state_dict(model['state_dict'])
+            best_net.load_state_dict(torch.load(save_path, map_location=device))
+            best_net.to(device)
             best_net.eval()
             
 
