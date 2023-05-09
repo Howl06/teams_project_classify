@@ -36,7 +36,7 @@ from optimizer_lion import Lion
 experiment = Experiment()
 
 # fastnet add
-from models.fasternet import fasternet_s
+from models.fasternet import fasternet_t1
 
 # mixup
 from timm.data.mixup import Mixup
@@ -99,9 +99,9 @@ def main():
     "num_classes": 27,
     "alpha": 1,
     "input_size": 224,
-    "mobilenet_name": fasternet_s,
+    "mobilenet_name": fasternet_t1,
     "loss_function_name": SoftTargetCrossEntropy,
-    "optimizer_name": optim.AdamW,
+    "optimizer_name": optim.Adam,
     "ImbalancedDatasetSampler": True, # ImbalancedDatasetSampler or class_weights
     "class_weights": False,
     "learning_speed": "no_speed",
@@ -115,7 +115,7 @@ def main():
     }
     patient_times = 0
     assert not (hyper_params["ImbalancedDatasetSampler"] and hyper_params["class_weights"]),"both_True"
-    model_name_set="fasternet_s"
+    model_name_set="fasternet_t1"
     experiment.log_parameters(hyper_params)
     exper_mame = "lr_{}_{}_{}".format(hyper_params["learning_rate"],
                          "optim.Adam",
@@ -133,12 +133,12 @@ def main():
                 ])
 
     # model
-    model_name_set="mobilenet_v3_large"
-    save_name = '/{}_{}_{}_{}.pth'.format(hyper_params["batch_size"], hyper_params["epochs"], 
+
+    save_name = '{}_{}_{}_{}.pth'.format(hyper_params["batch_size"], hyper_params["epochs"], 
                             hyper_params["alpha"], model_name_set)
 
     # path_load
-    load_path = "/content/drive/MyDrive/model/deep-learning-for-image-processing-master/pytorch_classification/Test6_mobilenet/path.json"
+    load_path = "./path.json"
     with open(load_path, "r", encoding="utf-8") as f:
         path_load = json.load(f)
 
@@ -203,7 +203,7 @@ def main():
     with open(classjson_path, 'w') as json_file:
         json_file.write(json_str)
 
-    nw = min([os.cpu_count(), hyper_params["batch_size"] if hyper_params["batch_size"] > 1 else 0, 8])  # number of workers
+    nw = min([os.cpu_count(), hyper_params["batch_size"] if hyper_params["batch_size"] > 1 else 0, 4])  # number of workers 8改4
     print('Using {} dataloader workers every process'.format(nw))
 
     # ImbalancedDatasetSampler
@@ -249,7 +249,7 @@ def main():
     num_fr = net.head.in_features
     net.head = nn.Linear(num_fr, hyper_params["num_classes"])
     # record best
-    best_net = hyper_params["mobilenet_name"](pretrained=hyper_params["pretrained"])
+    best_net = hyper_params["mobilenet_name"](pretrained=False)
     num_best_net = best_net.head.in_features
     best_net.head = nn.Linear(num_best_net, hyper_params["num_classes"])
     best_acc = 0.0
@@ -385,7 +385,7 @@ def main():
         # experiment.log_histogram_3d(weights, step=epoch + 1)
 
         experiment.log_metric("train_accuracy", correct / train_num )   
-
+        experiment.log_metrics({"train_loss": running_loss / train_steps}, epoch=epoch+1)
         
         
         # validate
